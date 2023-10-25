@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>
+		three-smoke
+	</title>
+	<style type="text/css">
+		body, html{
+			margin:0px;
+		}
+	</style>
+</head>
+<body>
+	<script type="module">
+				
+		import {
+		  Scene,
+		  PerspectiveCamera,
+		  WebGLRenderer,
+		  IcosahedronGeometry,
+		  MeshNormalMaterial,
+		  Mesh,
+		  Vector2,
+		  MathUtils,
+		  Ray,
+		  AmbientLight,
+		  DirectionalLight,
+		  Clock,
+		  PCFSoftShadowMap,
+		} from "./libs/build/three.module.js";
+
+		import { EffectComposer } from './libs/examples/jsm/postprocessing/EffectComposer.js';
+		import { RenderPass } from './libs/examples/jsm/postprocessing/RenderPass.js';
+		import { ShaderPass } from './libs/examples/jsm/postprocessing/ShaderPass.js';
+		import { HorizontalBlurShader } from './libs/examples/jsm/shaders/HorizontalBlurShader.js';
+		import { VerticalBlurShader } from './libs/examples/jsm/shaders/VerticalBlurShader.js';
+		import {OrbitControls} from './libs/examples/jsm/controls/OrbitControls.js'
+		import { Flocking } from './src/Flocking.js';
+		
+		import ScrollControls from './src/ScrollControls.js';
+
+		const clock = new Clock();
+		const scene = new Scene();
+		const camera = new PerspectiveCamera(
+		  60,
+		  window.innerWidth / window.innerHeight,
+		  0.1,
+		  1000
+		);
+
+		const touch = !!('ontouchstart' in window)
+
+		const ray = new Ray();
+		const mouse3d = ray.origin;
+		const mouse = new Vector2();
+
+		const geometry = new IcosahedronGeometry();
+		const material = new MeshNormalMaterial();
+		const mesh = new Mesh(geometry, material);
+		//scene.add(mesh);
+
+		camera.position.z = 430;
+		camera.position.y = 5;
+		//camera.position.z = 12;
+
+		const renderer = new WebGLRenderer({ alpha: true });
+		renderer.setClearColor(0x000000);
+		renderer.setSize(window.innerWidth, window.innerHeight);
+		document.body.appendChild(renderer.domElement);
+		//renderer.setPixelRatio( window.devicePixelRatio );
+		//renderer.domElement.style.filter = `blur(5px) blur(5px)`
+		//renderer.shadowMap.type = PCFSoftShadowMap;
+		//renderer.shadowMap.enabled = true;
+		let touched = false;
+		let isMouseDown = false;
+		//let stat = new Stats();
+		//document.body.appendChild(stat.domElement);
+
+		let composer = new EffectComposer( renderer );
+		composer.addPass( new RenderPass( scene, camera ) );
+
+		const hblur = new ShaderPass( HorizontalBlurShader );
+		composer.addPass( hblur );
+
+		const vblur = new ShaderPass( VerticalBlurShader );
+		// set this shader pass to render to screen so we can see the effects
+
+		hblur.uniforms[ 'h' ].value = 1 / ( innerWidth / 2 );
+		vblur.uniforms[ 'v' ].value = 1 / ( innerHeight / 2 );
+
+		vblur.renderToScreen = true;
+		composer.addPass( vblur );
+
+		let flock = Flocking(renderer, scene, camera);
+		let control = new OrbitControls(camera, renderer.domElement);
+		control.autoRotate = true;
+
+		/*const panel = new GUI( { width: 310 } );
+		const folder1 = panel.addFolder( 'Ranges' );
+
+		const settings = {
+			'range': 250.0,
+			'radius': 400.0,
+		}
+
+		folder1.add( settings, 'range' ).onChange((value) => {
+			flock.range = value;
+		});
+
+		folder1.add( settings, 'radius' ).onChange((value) => {
+			flock.radius = value;
+		});*/
+
+		const onScrolled = (value) => {
+			//value = value + .02;
+			value = MathUtils.mapLinear(value, 0, 1, 200, -250);
+			flock.range = value;
+		};
+
+		const scroll = ScrollControls(renderer, {
+		  page: 3,
+		  onScrolled
+		});
+
+		const onResizeHandler = e => {
+		  win_w = window.innerWidth;
+		  win_h = window.innerHeight;
+
+		  renderer.setSize(win_w, win_h)
+		  camera.aspect = win_w/win_h
+		  camera.updateProjectionMatrix()
+		};
+
+		const onTouchBeganHandler = e => { 
+		  isMouseDown = true
+		};
+
+		const onTouchMovedHandler = e => {
+		  //if(isMouseDown){
+		    const x = touch ? e.changedTouches[0].pageX : e.clientX
+		      const y = touch ? e.changedTouches[0].pageY : e.clientY
+		      mouse.x = (x / window.innerWidth) * 2 - 1
+		      mouse.y = -(y / window.innerHeight) * 2 + 1
+		  //}
+		};
+
+		const onTouchEndedHandler = e => { 
+		  isMouseDown = false
+		};
+
+		const initEvents = () => {
+		  const touchBegan = touch ? 'touchstart' : 'mousedown';
+		    const touchMoved = touch ? 'touchmove' : 'mousemove';
+		    const touchEnded = touch ? 'touchend' : 'mouseup';
+
+		    document.addEventListener(touchBegan, onTouchBeganHandler, false)
+		    window.addEventListener(touchMoved, onTouchMovedHandler, false)
+		    document.addEventListener(touchEnded, onTouchEndedHandler, false)
+		    window.addEventListener('resize', onResizeHandler, false)
+		};
+
+		const initLights = () => {
+		  
+		  scene.add( new AmbientLight( 0xFFFFFF, 1.5 ) );
+
+		  /*const dirLight = new DirectionalLight( 0xffffff, 5 );
+		  dirLight.name = 'Dir. Light';
+		  dirLight.position.set( 0, -20, 0 );
+		  dirLight.castShadow = true;
+		  dirLight.shadow.camera.near = 1;
+		  dirLight.shadow.camera.far = 50;
+		  dirLight.shadow.camera.right = 25;
+		  dirLight.shadow.camera.left = - 25;
+		  dirLight.shadow.camera.top  = 25;
+		  dirLight.shadow.camera.bottom = - 25;
+		  dirLight.shadow.mapSize.width = 2048;
+		  dirLight.shadow.mapSize.height = 2048;
+		  scene.add( dirLight ); */
+		  //scene.add( new THREE.CameraHelper( dirLight.shadow.camera ) );
+
+		 /* const dirLight2 = new DirectionalLight( 0xffffff, 2 );
+		  dirLight2.name = 'Dir. Light';
+		  dirLight2.position.set( 0, 10, 0 );
+		  dirLight2.castShadow = true;
+		  dirLight2.shadow.camera.near = 1;
+		  dirLight2.shadow.camera.far = 50;
+		  dirLight2.shadow.camera.right = 25;
+		  dirLight2.shadow.camera.left = - 25;
+		  dirLight2.shadow.camera.top = 25;
+		  dirLight2.shadow.camera.bottom = - 25;
+		  dirLight2.shadow.mapSize.width = 2048;
+		  dirLight2.shadow.mapSize.height = 2048;
+		  scene.add( dirLight2 );*/
+		};
+
+		const updateMouse3D = () => {
+		  camera.updateMatrixWorld()
+		  ray.origin.setFromMatrixPosition(camera.matrixWorld)
+		  ray.direction.set(mouse.x, mouse.y, 0.5).unproject(camera).sub(ray.origin).normalize()
+		  const distance = ray.origin.length() / Math.cos(Math.PI - ray.direction.angleTo(ray.origin))
+		  ray.origin.add(ray.direction.multiplyScalar(distance * 1.0))
+		};
+
+		const animate = () => {
+		  requestAnimationFrame(animate);
+
+		  const delta = clock.getDelta();
+		  const time = clock.getElapsedTime();
+
+		  //mesh.rotation.x += 0.01;
+		  //mesh.rotation.y += 0.01;
+
+		  updateMouse3D();
+		  scroll.update(delta)
+
+
+		  flock.update(delta, time, mouse3d, isMouseDown);
+		  //stat.update();
+
+		  
+		  renderer.render(scene, camera);
+		  //composer.render();
+		}
+
+		const init = async() => {
+		  
+		  initLights();
+		  initEvents();
+
+		  animate();
+		};
+
+		init();
+
+
+
+
+	</script>
+</body>
+</html>
