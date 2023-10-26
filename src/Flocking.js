@@ -519,7 +519,7 @@ const Flocking = (renderer, scene, camera, _options) => {
 			shader.uniforms.uTextureOldPos =  { type:'t', value:null }
 			shader.uniforms.uTextureRandom =  { type:'t', value:null }
 			shader.uniforms.uTime =  { type:'f', value:uTime }
-			shader.uniforms.uColor = { type:'t', value:new TextureLoader().load('./textures/blue.jpg')}
+			shader.uniforms.uColor = { type:'t', value:new TextureLoader().load('./textures/008.png')}
 			_shader = shader;
 
 			shader.vertexShader = shader.vertexShader.replace(
